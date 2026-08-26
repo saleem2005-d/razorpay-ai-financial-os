@@ -6,7 +6,7 @@ Exposes Webhook Ingestion, Replay Timelines, Counterfactual Sandbox, and Enginee
 import hmac
 import hashlib
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends, status
 from pydantic import BaseModel
@@ -21,6 +21,8 @@ from src.core.replay_engine import (
 from src.core.consistency_engine import build_consistency_graph, FinancialOSState
 
 redis_client: Optional[aioredis.Redis] = None
+local_idempotency_cache: Set[str] = set()
+
 WEBHOOK_SECRET = "RAZORPAY_BUILDATHON_WEBHOOK_SECRET_2026"
 IDEMPOTENCY_TTL_SECONDS = 86400
 
@@ -97,6 +99,7 @@ async def handle_razorpay_webhook(
             detail="Missing X-Razorpay-Event-Id header."
         )
 
+    # Idempotency Gate with Redis and Local Set Fallback
     if redis_client:
         is_duplicate = await redis_client.set(
             f"idempotency:{event_id}", "PROCESSED", nx=True, ex=IDEMPOTENCY_TTL_SECONDS
@@ -105,9 +108,18 @@ async def handle_razorpay_webhook(
             return WebhookResponse(
                 status="SKIPPED_DUPLICATE",
                 event_id=event_id,
-                message="Event previously processed by Idempotency Gate.",
+                message="Event previously processed by Redis Idempotency Gate.",
                 processed_at_ms=int(time.time() * 1000)
             )
+    else:
+        if event_id in local_idempotency_cache:
+            return WebhookResponse(
+                status="SKIPPED_DUPLICATE",
+                event_id=event_id,
+                message="Event previously processed by In-Memory Idempotency Gate.",
+                processed_at_ms=int(time.time() * 1000)
+            )
+        local_idempotency_cache.add(event_id)
 
     # Execute State Graph Workflow
     initial_state: FinancialOSState = {
