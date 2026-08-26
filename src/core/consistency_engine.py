@@ -35,15 +35,29 @@ class FinancialOSState(TypedDict):
     errors: List[str]
 
 
+def resolve_final_action(
+    consensus: ConsensusResult,
+    policy: PolicyCheckResult
+) -> ActionType:
+    """
+    Resolves the definitive transaction action.
+    Deterministic policy enforcement overrides probabilistic AI consensus.
+    """
+    if policy and policy.override_action:
+        return policy.override_action
+    return consensus.final_action
+
+
 async def planner_node(state: FinancialOSState) -> Dict[str, Any]:
     """Inbound Planner: Decomposes transaction payload and prepares parallel evaluation paths."""
     payload = state["input_payload"]
     amount = payload.get("amount", 0)
+    velocity = payload.get("velocity_count", 0)
     
     instructions = [
         f"Analyze payment risk for transaction amount {amount}.",
-        "Evaluate device consistency, IP velocity, and past chargeback record.",
-        "Propose deterministic action and bounded risk score."
+        f"Evaluate transaction velocity count ({velocity}) and IP blacklist status.",
+        "Propose candidate action and bounded risk score."
     ]
     return {
         "planner_instructions": instructions,
@@ -58,12 +72,15 @@ async def _simulate_llm_reasoner(
     payload: Dict[str, Any]
 ) -> ReasonerOutput:
     """
-    High-Throughput Simulation Driver & LLM Interface Node.
-    
-    NOTE FOR EVALUATORS: This node executes a deterministic distribution function 
-    to enable zero-cost, high-throughput load benchmarking (50+ txns/sec). 
-    It emits structured `ReasonerOutput` Pydantic payloads identical to live 
-    OpenAI / Gemini tool-calling responses.
+    High-throughput simulation provider for the reasoner interface.
+
+    This benchmark implementation generates structured ReasonerOutput
+    objects using a local risk-distribution model. Its schema mirrors the
+    structured output expected from a live LLM provider, allowing the
+    orchestration, validation, consensus, policy, and audit layers to be
+    benchmarked deterministically without external inference cost.
+
+    This function is a synthetic simulation provider, not a live LLM API call.
     """
     await asyncio.sleep(0.05)
     amount = payload.get("amount", 0)
@@ -92,19 +109,19 @@ async def _simulate_llm_reasoner(
 
 
 async def reasoner_a_node(state: FinancialOSState) -> Dict[str, Any]:
-    """Reasoner A: Deterministic Conservative Path (Temperature = 0.0)"""
+    """Reasoner A: Synthetic Conservative Path (Temperature = 0.0)"""
     res = await _simulate_llm_reasoner("Reasoner_A_Conservative", 0.0, state["input_payload"])
     return {"reasoner_outputs": [res]}
 
 
 async def reasoner_b_node(state: FinancialOSState) -> Dict[str, Any]:
-    """Reasoner B: Balanced Contextual Path (Temperature = 0.2)"""
+    """Reasoner B: Synthetic Balanced Path (Temperature = 0.2)"""
     res = await _simulate_llm_reasoner("Reasoner_B_Balanced", 0.2, state["input_payload"])
     return {"reasoner_outputs": [res]}
 
 
 async def reasoner_c_node(state: FinancialOSState) -> Dict[str, Any]:
-    """Reasoner C: Adversarial Stress Test Path (Temperature = 0.4)"""
+    """Reasoner C: Synthetic Adversarial Path (Temperature = 0.4)"""
     res = await _simulate_llm_reasoner("Reasoner_C_Adversarial", 0.4, state["input_payload"])
     return {"reasoner_outputs": [res]}
 
@@ -129,7 +146,7 @@ async def validator_node(state: FinancialOSState) -> Dict[str, Any]:
 
 
 async def consensus_engine_node(state: FinancialOSState) -> Dict[str, Any]:
-    """Consensus Engine Node: Calculates agreement metric across parallel reasoners."""
+    """Consensus Engine Node: Calculates majority consensus ratio across parallel reasoners."""
     outputs = state.get("validated_outputs", [])
     if not outputs:
         raise ValueError("Consensus Engine received zero validated reasoner outputs.")
@@ -203,11 +220,13 @@ async def policy_gate_node(state: FinancialOSState) -> Dict[str, Any]:
 
 
 async def fingerprint_node(state: FinancialOSState) -> Dict[str, Any]:
-    """Decision Fingerprint Generator: Emits an immutable, cryptographically signed audit receipt."""
+    """Decision Fingerprint Generator: Emits an immutable, signed SHA-256 decision fingerprint."""
     consensus = state["consensus_result"]
     policy = state["policy_result"]
     start_time = state.get("execution_start_time", time.time())
     latency_ms = round((time.time() - start_time) * 1000, 2)
+
+    final_action = resolve_final_action(consensus, policy)
 
     risk_level = DecisionRiskLevel.LOW
     if consensus.consensus_risk_score > 80.0:
@@ -219,13 +238,18 @@ async def fingerprint_node(state: FinancialOSState) -> Dict[str, Any]:
 
     fingerprint = DecisionFingerprint(
         model_versions={
-            "Reasoner_A": "GPT-4o-mini-0.0",
-            "Reasoner_B": "GPT-4o-mini-0.2",
-            "Reasoner_C": "GPT-4o-mini-0.4"
+            "execution_mode": "SIMULATION",
+            "Reasoner_A": "simulation-driver-v1-temperature-0.0",
+            "Reasoner_B": "simulation-driver-v1-temperature-0.2",
+            "Reasoner_C": "simulation-driver-v1-temperature-0.4"
         },
         confidence_score=consensus.consensus_confidence,
         rules_triggered=policy.rules_triggered,
-        evidence_used=[f"txn_id:{state['transaction_id']}", f"risk_var:{consensus.risk_variance}"],
+        evidence_used=[
+            f"txn_id:{state['transaction_id']}", 
+            f"risk_var:{consensus.risk_variance}",
+            f"resolved_action:{final_action.value}"
+        ],
         risk_level=risk_level,
         validation_status=policy.passed,
         latency_ms=latency_ms
@@ -293,14 +317,16 @@ if __name__ == "__main__":
         consensus = final_output["consensus_result"]
         policy = final_output["policy_result"]
         fp = final_output["final_decision_fingerprint"]
+        resolved_action = resolve_final_action(consensus, policy)
 
-        print(f"\n[Consensus Action]: {consensus.final_action.value}")
-        print(f"[Consensus Risk Score]: {consensus.consensus_risk_score}/100")
-        print(f"[Agreement Ratio]: {consensus.agreement_score * 100}%")
+        print(f"\n[Consensus Candidate Action]: {consensus.final_action.value}")
+        print(f"[Majority Consensus Ratio]: {consensus.agreement_score * 100}%")
         print(f"[Policy Passed]: {policy.passed}")
+        print(f"[Resolved Final Action]: {resolved_action.value}")
         if policy.override_action:
-            print(f"[Policy Override Action]: {policy.override_action.value} ({policy.override_reason})")
-        print(f"\n[Decision Fingerprint Hash]: {fp.hash_signature}")
+            print(f"[Policy Override Reason]: {policy.override_reason}")
+        print(f"\n[Execution Mode]: {fp.model_versions.get('execution_mode')}")
+        print(f"[Decision Fingerprint Hash]: {fp.hash_signature}")
         print(f"[Latency]: {fp.latency_ms} ms")
 
     asyncio.run(run_test())
