@@ -1,0 +1,17 @@
+﻿version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WEBHOOK_SECRET=RAZORPAY_BUILDATHON_WEBHOOK_SECRET_2026
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
