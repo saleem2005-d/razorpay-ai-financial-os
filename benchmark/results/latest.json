@@ -1,0 +1,136 @@
+{
+  "benchmark_metadata": {
+    "dataset_version": "1.1.0",
+    "seed": 42,
+    "timestamp": 1787840883.26429,
+    "cost_assumptions": {
+      "friction_cost_rupees": 150.0,
+      "estimated_loss_rate": 0.25,
+      "manual_review_cost_rupees": 25.0,
+      "disclaimer": "Synthetic benchmark assumptions \u2014 not Razorpay internal economics."
+    }
+  },
+  "security_gate_metrics": {
+    "total_security_scenarios": 60,
+    "total_passed": 60,
+    "overall_protection_rate": 1.0,
+    "breakdown": {
+      "invalid_hmac_signature": {
+        "total": 15,
+        "passed": 15
+      },
+      "missing_signature_header": {
+        "total": 15,
+        "passed": 15
+      },
+      "missing_event_id": {
+        "total": 10,
+        "passed": 10
+      },
+      "malformed_json_payload": {
+        "total": 10,
+        "passed": 10
+      },
+      "sequential_duplicate_delivery": {
+        "total": 10,
+        "passed": 10
+      }
+    },
+    "concurrent_duplicate_protection": {
+      "total_pairs": 5,
+      "passed_pairs": 5,
+      "protection_rate": 1.0
+    }
+  },
+  "risk_classification_metrics": {
+    "total_risk_scenarios": 240,
+    "confusion_matrix": {
+      "tp": 52,
+      "tn": 110,
+      "fp": 40,
+      "fn": 38
+    },
+    "metrics": {
+      "precision": 0.5652,
+      "recall": 0.5778,
+      "f1": 0.5714,
+      "fpr": 0.2667
+    },
+    "latency_ms": {
+      "p50": 5.43,
+      "p95": 8.56
+    }
+  },
+  "synthetic_cost_breakdown": {
+    "false_positive_friction_cost_rupees": 6000.0,
+    "false_negative_loss_cost_rupees": 86598.1,
+    "manual_review_ops_cost_rupees": 2300.0,
+    "total_synthetic_benchmark_cost_rupees": 94898.1
+  },
+  "operating_point_analysis": [
+    {
+      "threshold_rupees": 75000.0,
+      "confusion_matrix": {
+        "tp": 52,
+        "tn": 100,
+        "fp": 50,
+        "fn": 38
+      },
+      "precision": 0.5098,
+      "recall": 0.5778,
+      "f1": 0.5417,
+      "fpr": 0.3333,
+      "synthetic_total_cost_rupees": 96648.1
+    },
+    {
+      "threshold_rupees": 100000.0,
+      "confusion_matrix": {
+        "tp": 52,
+        "tn": 110,
+        "fp": 40,
+        "fn": 38
+      },
+      "precision": 0.5652,
+      "recall": 0.5778,
+      "f1": 0.5714,
+      "fpr": 0.2667,
+      "synthetic_total_cost_rupees": 94898.1
+    },
+    {
+      "threshold_rupees": 125000.0,
+      "confusion_matrix": {
+        "tp": 42,
+        "tn": 114,
+        "fp": 36,
+        "fn": 48
+      },
+      "precision": 0.5385,
+      "recall": 0.4667,
+      "f1": 0.5,
+      "fpr": 0.24,
+      "synthetic_total_cost_rupees": 347863.35
+    },
+    {
+      "threshold_rupees": 150000.0,
+      "confusion_matrix": {
+        "tp": 42,
+        "tn": 119,
+        "fp": 31,
+        "fn": 48
+      },
+      "precision": 0.5753,
+      "recall": 0.4667,
+      "f1": 0.5153,
+      "fpr": 0.2067,
+      "synthetic_total_cost_rupees": 346988.35
+    }
+  ],
+  "operating_point_delta_100k_to_125k": {
+    "new_false_negatives": 10,
+    "recovered_false_positives": 4,
+    "uncaught_high_risk_amount_rupees": 1015661.0,
+    "additional_estimated_loss_rupees": 253915.25,
+    "reduced_friction_and_ops_cost_rupees": 950.0,
+    "net_cost_delta_rupees": 252965.25
+  }
+}

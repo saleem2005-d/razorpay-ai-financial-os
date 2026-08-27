@@ -1,0 +1,74 @@
+=====================================================================
+SENTINELAI TRACK 2 DEFENSE VERIFIER BENCHMARK REPORT
+=====================================================================
+Dataset: 240 Risk Scenarios | 60 Security Scenarios (Seed: 42)
+
+[1] SECURITY GATE METRICS
+  Overall Protection Rate: 100.0% (60/60)
+  - Invalid HMAC Rejected:        15/15 (HTTP 401)
+  - Missing Signature Rejected:   15/15 (HTTP 401)
+  - Missing Event ID Rejected:    10/10 (HTTP 400)
+  - Malformed JSON Rejected:      10/10 (HTTP 400)
+  - Sequential Duplicate Blocked: 10/10 (Idempotent 200)
+  - Concurrent Duplicate Rate:    100.0% (5/5 pairs safely deduplicated)
+
+[2] RULE-BASED RISK CLASSIFICATION (Baseline T = ₹100,000)
+  TP: 52   | TN: 110  | FP: 40   | FN: 38  
+  Precision: 0.5652
+  Recall:    0.5778
+  F1 Score:  0.5714
+  FPR:       0.2667
+  Decision Latency: p50 = 5.43 ms | p95 = 8.56 ms
+
+[3] SYNTHETIC FINANCIAL COST MODEL
+  * Assumptions: FP Friction = ₹150 | FN Loss Rate = 25% | Review Ops = ₹25
+  * Disclaimer: Synthetic benchmark assumptions — not Razorpay internal economics.
+  - False Positive Friction Cost: ₹6,000.00
+  - False Negative Loss Exposure: ₹86,598.10
+  - Review Operations Cost:       ₹2,300.00
+  - TOTAL SYNTHETIC COST:         ₹94,898.10
+
+[4] RISK POLICY OPERATING-POINT ANALYSIS
+  Threshold (₹) | Precision | Recall | F1 Score | FPR    | Total Cost (₹)
+  ---------------------------------------------------------------------
+  ₹75,000      | 0.5098    | 0.5778 | 0.5417   | 0.3333 | ₹96,648.10
+  ₹100,000     | 0.5652    | 0.5778 | 0.5714   | 0.2667 | ₹94,898.10
+  ₹125,000     | 0.5385    | 0.4667 | 0.5000   | 0.2400 | ₹347,863.35
+  ₹150,000     | 0.5753    | 0.4667 | 0.5153   | 0.2067 | ₹346,988.35
+
+[5] OPERATING-POINT DELTA ANALYSIS (₹100,000 -> ₹125,000)
+  - New False Negatives:             10 (Uncaught high-risk tx amount: ₹1,015,661.00)
+  - Recovered False Positives:        4 (Legitimate high-value tx unblocked)
+  - Additional Modeled Loss (+):     ₹253,915.25
+  - Reduced Friction & Ops Cost (-): ₹950.00
+  - Net Synthetic Cost Delta:        +₹252,965.25
+
+=====================================================================
+FINAL BENCHMARK SUMMARY
+=====================================================================
+
+Security Gate:
+  HMAC Rejection:            100.0% (HTTP 401)
+  Missing ID Rejection:      100.0% (HTTP 400)
+  Sequential Deduplication:  100.0% (Idempotent HTTP 200)
+  Concurrent Deduplication:  100.0% (Atomic In-Flight Locks)
+
+Baseline Risk Policy:
+  Threshold:                 ₹100,000
+  Precision:                 0.5652
+  Recall:                    0.5778
+  F1 Score:                  0.5714
+  FPR:                       0.2667
+  Decision Latency:          p50 = 5.43 ms | p95 = 8.56 ms
+
+Policy Optimization:
+  Cost-Optimal Tested Point: ₹100,000
+  Baseline Synthetic Cost:   ₹94,898.10
+  Best Tested Cost:          ₹94,898.10
+
+System Limitations:
+  1. Synthetic Dataset: Evaluated on deterministically generated scenarios (Seed: 42), not proprietary Razorpay customer data.
+  2. Process-Local State: Idempotency and velocity locks are asyncio single-process scoped; not distributed Redis.
+  3. Rule-Based Engine: Evaluates deterministic policies and state graphs; not a trained neural network.
+  4. Modeled Economics: Loss and friction rates are synthetic benchmark assumptions for trade-off exploration.
+=====================================================================

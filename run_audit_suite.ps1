@@ -1,5 +1,5 @@
 ﻿# =====================================================================
-# AI Risk Manager / Financial OS - Phase 6 Audit & Chaos Test Suite
+# SentinelAI - Phase 6 Defense Verifier Test Suite (8 Test Vectors)
 # =====================================================================
 
 $ErrorActionPreference = "Continue"
@@ -10,124 +10,99 @@ $AuditEndpoint = "$BaseUrl/api/v1/audit/fingerprint"
 $Secret = "test_webhook_secret_key_123"
 
 function Get-HmacSignature {
-    param (
-        [string]$Payload,
-        [string]$SecretKey
-    )
+    param ([string]$Payload, [string]$SecretKey)
     $hmac = New-Object System.Security.Cryptography.HMACSHA256
     $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($SecretKey)
     $hash = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Payload))
     return -join ($hash | ForEach-Object { "{0:x2}" -f $_ })
 }
 
-function Send-WebhookEvent {
+function Invoke-WebhookTest {
     param (
-        [string]$EventId,
-        [string]$PaymentId,
-        [double]$Amount,
-        [string]$Status = "payment.captured",
-        [switch]$TamperSignature
+        [string]$PayloadString,
+        [string]$Signature,
+        [string]$EventIdHeader,
+        [switch]$OmitSignatureHeader
     )
-
-    $payloadObject = @{
-        event = $Status
-        account_id = "acc_simulated_razorpay"
-        event_id = $EventId
-        created_at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-        payload = @{
-            payment = @{
-                entity = @{
-                    id = $PaymentId
-                    amount = $Amount * 100
-                    currency = "INR"
-                    status = "captured"
-                    method = "upi"
-                    created_at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-                }
-            }
-        }
-    }
-
-    $jsonPayload = $payloadObject | ConvertTo-Json -Depth 5 -Compress
-    $signature = Get-HmacSignature -Payload $jsonPayload -SecretKey $Secret
-
-    if ($TamperSignature) {
-        $signature = "tampered_invalid_sig_hash_000000000000"
-    }
-
-    $headers = @{
-        "Content-Type" = "application/json"
-        "X-Razorpay-Signature" = $signature
-        "X-Razorpay-Event-Id" = $EventId
-    }
+    $headers = @{ "Content-Type" = "application/json" }
+    if (-not $OmitSignatureHeader) { $headers["X-Razorpay-Signature"] = $Signature }
+    if ($EventIdHeader) { $headers["X-Razorpay-Event-Id"] = $EventIdHeader }
 
     try {
-        $response = Invoke-RestMethod -Uri $WebhookEndpoint -Method Post -Body $jsonPayload -Headers $headers -ErrorAction Stop
-        return @{ Success = $true; StatusCode = 200; Data = $response }
-    }
-    catch {
+        $res = Invoke-RestMethod -Uri $WebhookEndpoint -Method Post -Body $PayloadString -Headers $headers -ErrorAction Stop
+        return @{ Success = $true; StatusCode = 200; Data = $res }
+    } catch {
         $statusCode = $_.Exception.Response.StatusCode.value__
         return @{ Success = $false; StatusCode = $statusCode; Error = $_.Exception.Message }
     }
 }
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host " Starting Audit & Verification Run (State, HMAC & Chaos) " -ForegroundColor Cyan
+Write-Host " Starting Verification Suite: SentinelAI Defense Gate     " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Test 1: Health & System Gateway Connectivity
-Write-Host "`n[Test 1] Checking API Server Health..." -ForegroundColor Yellow
+# Test 1: Health Check
+Write-Host "`n[Test 1] Health & Subsystem Status..." -ForegroundColor Yellow
 try {
-    $health = Invoke-RestMethod -Uri "$BaseUrl/health" -Method Get -ErrorAction Stop
-    Write-Host " -> Server is ONLINE: $(ConvertTo-Json $health -Compress)" -ForegroundColor Green
-}
-catch {
-    Write-Host " -> API Server unavailable at $BaseUrl. Ensure backend service is running." -ForegroundColor Red
-    exit
+    $h = Invoke-RestMethod -Uri "$BaseUrl/health" -Method Get -ErrorAction Stop
+    Write-Host " -> PASSED: Server online. Subsystems: $(ConvertTo-Json $h.subsystems -Compress)" -ForegroundColor Green
+} catch {
+    Write-Host " -> FAILED: Server offline at $BaseUrl." -ForegroundColor Red; exit
 }
 
-# Test 2: HMAC Signature Security Check (Adversarial Payload)
-Write-Host "`n[Test 2] Testing Tampered HMAC Signature (Security Gate)..." -ForegroundColor Yellow
-$tamperRes = Send-WebhookEvent -EventId "evt_tamper_001" -PaymentId "pay_sec_fail_001" -Amount 15000 -TamperSignature
-if ($tamperRes.StatusCode -eq 401 -or $tamperRes.StatusCode -eq 403 -or -not $tamperRes.Success) {
-    Write-Host " -> PASSED: Invalid signature successfully rejected (HTTP $($tamperRes.StatusCode))." -ForegroundColor Green
-} else {
-    Write-Host " -> FAILED: Tampered signature accepted unexpectedly!" -ForegroundColor Red
-}
+# Test 2: Invalid HMAC Signature
+Write-Host "`n[Test 2] Tampered / Invalid Signature..." -ForegroundColor Yellow
+$p2 = '{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_2","amount":500000,"currency":"INR"}}}}'
+$r2 = Invoke-WebhookTest -PayloadString $p2 -Signature "tampered_sig_hash" -EventIdHeader "evt_test_2"
+if ($r2.StatusCode -eq 401) { Write-Host " -> PASSED: Rejected with HTTP 401." -ForegroundColor Green } else { Write-Host " -> FAILED: HTTP $($r2.StatusCode)" -ForegroundColor Red }
 
-# Test 3: Standard Ingestion & Risk Scoring
-Write-Host "`n[Test 3] Processing Valid Payment Event..." -ForegroundColor Yellow
-$validEventId = "evt_valid_" + (Get-Random)
-$validPayId = "pay_valid_" + (Get-Random)
-$ingestRes = Send-WebhookEvent -EventId $validEventId -PaymentId $validPayId -Amount 75000
-if ($ingestRes.Success) {
-    Write-Host " -> PASSED: Ingestion successful. Decision payload: $(ConvertTo-Json $ingestRes.Data -Compress)" -ForegroundColor Green
-} else {
-    Write-Host " -> FAILED: Could not process valid event. Error: $($ingestRes.Error)" -ForegroundColor Red
-}
+# Test 3: Missing HMAC Signature
+Write-Host "`n[Test 3] Missing Signature Header..." -ForegroundColor Yellow
+$r3 = Invoke-WebhookTest -PayloadString $p2 -EventIdHeader "evt_test_3" -OmitSignatureHeader
+if ($r3.StatusCode -eq 401) { Write-Host " -> PASSED: Rejected with HTTP 401." -ForegroundColor Green } else { Write-Host " -> FAILED: HTTP $($r3.StatusCode)" -ForegroundColor Red }
 
-# Test 4: Idempotency & Replay Attack Protection (Redis Lock Verification)
-Write-Host "`n[Test 4] Simulating Duplicate Event Delivery (Replay Attack)..." -ForegroundColor Yellow
-$replayRes = Send-WebhookEvent -EventId $validEventId -PaymentId $validPayId -Amount 75000
-if ($replayRes.StatusCode -eq 409 -or $replayRes.Data.status -match "duplicate|idempotent_hit" -or $replayRes.Data.idempotent -eq $true) {
-    Write-Host " -> PASSED: Duplicate event blocked / deduplicated via idempotency lock." -ForegroundColor Green
-} else {
-    Write-Host " -> INFO: Response received: $(ConvertTo-Json $replayRes.Data -Compress)" -ForegroundColor Cyan
-}
+# Test 4: Missing Event ID
+Write-Host "`n[Test 4] Missing Event ID (Header and Payload)..." -ForegroundColor Yellow
+$p4 = '{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_4","amount":500000,"currency":"INR"}}}}'
+$sig4 = Get-HmacSignature -Payload $p4 -SecretKey $Secret
+$r4 = Invoke-WebhookTest -PayloadString $p4 -Signature $sig4
+if ($r4.StatusCode -eq 400) { Write-Host " -> PASSED: Rejected with HTTP 400 (Missing event ID)." -ForegroundColor Green } else { Write-Host " -> FAILED: HTTP $($r4.StatusCode)" -ForegroundColor Red }
 
-# Test 5: Audit Decision Ledger & Fingerprint Check
-Write-Host "`n[Test 5] Querying Decision Fingerprint Audit Trail..." -ForegroundColor Yellow
+# Test 5: Malformed JSON Payload
+Write-Host "`n[Test 5] Malformed JSON Payload..." -ForegroundColor Yellow
+$badJson = '{"event": "payment.captured", "broken_json": '
+$sig5 = Get-HmacSignature -Payload $badJson -SecretKey $Secret
+$r5 = Invoke-WebhookTest -PayloadString $badJson -Signature $sig5 -EventIdHeader "evt_test_5"
+if ($r5.StatusCode -eq 400) { Write-Host " -> PASSED: Rejected with HTTP 400 (Malformed payload)." -ForegroundColor Green } else { Write-Host " -> FAILED: HTTP $($r5.StatusCode)" -ForegroundColor Red }
+
+# Test 6: Valid Ingestion & Risk Scoring
+Write-Host "`n[Test 6] Valid Payment Event Ingestion..." -ForegroundColor Yellow
+$evt6 = "evt_valid_" + (Get-Random)
+$p6 = '{"event":"payment.captured","event_id":"' + $evt6 + '","payload":{"payment":{"entity":{"id":"pay_6","amount":7500000,"currency":"INR"}}}}'
+$sig6 = Get-HmacSignature -Payload $p6 -SecretKey $Secret
+$r6 = Invoke-WebhookTest -PayloadString $p6 -Signature $sig6 -EventIdHeader $evt6
+if ($r6.Success -and $r6.Data.decision -eq "ALLOW") {
+    Write-Host " -> PASSED: Ingestion successful. Decision: $($r6.Data.decision), Risk Score: $($r6.Data.risk_score)" -ForegroundColor Green
+} else { Write-Host " -> FAILED: Ingestion failed." -ForegroundColor Red }
+
+# Test 7: Duplicate Event Protection (Sequential)
+Write-Host "`n[Test 7] Sequential Duplicate Event Delivery..." -ForegroundColor Yellow
+$r7 = Invoke-WebhookTest -PayloadString $p6 -Signature $sig6 -EventIdHeader $evt6
+if ($r7.Data.idempotent -eq $true -and $r7.Data.status -eq "duplicate") {
+    Write-Host " -> PASSED: Duplicate detected and returned cached state." -ForegroundColor Green
+} else { Write-Host " -> FAILED: Duplicate not blocked." -ForegroundColor Red }
+
+# Test 8: Audit Decision Fingerprint Lookup
+Write-Host "`n[Test 8] Querying SHA-256 Decision Fingerprint..." -ForegroundColor Yellow
 try {
-    $auditRes = Invoke-RestMethod -Uri "$AuditEndpoint/$validEventId" -Method Get -ErrorAction Stop
-    Write-Host " -> PASSED: Fingerprint Verified:" -ForegroundColor Green
-    Write-Host "    Deterministic Hash: $($auditRes.fingerprint_hash)" -ForegroundColor Gray
-    Write-Host "    Policy Rule Engine: $($auditRes.rule_verdict)" -ForegroundColor Gray
-    Write-Host "    State Immutable: $($auditRes.is_immutable)" -ForegroundColor Gray
-}
-catch {
-    Write-Host " -> NOTE: Audit log check returned: $($_.Exception.Message)" -ForegroundColor DarkYellow
+    $audit = Invoke-RestMethod -Uri "$AuditEndpoint/$evt6" -Method Get -ErrorAction Stop
+    Write-Host " -> PASSED: SHA-256 Fingerprint Record Verified:" -ForegroundColor Green
+    Write-Host "    Hash: $($audit.fingerprint_hash)" -ForegroundColor Gray
+    Write-Host "    Rule Verdict: $($audit.rule_verdict)" -ForegroundColor Gray
+} catch {
+    Write-Host " -> FAILED: Could not retrieve audit record." -ForegroundColor Red
 }
 
 Write-Host "`n==========================================================" -ForegroundColor Cyan
-Write-Host " Audit run finished. Ready to inspect Step 7: README.md.   " -ForegroundColor Cyan
+Write-Host " Test suite completed. Ready for review.                  " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
