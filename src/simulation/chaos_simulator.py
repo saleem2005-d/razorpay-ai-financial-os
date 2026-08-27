@@ -1,6 +1,6 @@
 ﻿"""
-High-Throughput Synthetic Simulation & Chaos Engineering Engine.
-Evaluates Financial OS under load, failure conditions, and edge-case attacks.
+High-Throughput Synthetic Load & Threat Injection Simulator.
+Evaluates Financial OS performance, policy gate enforcement, and attack mitigation.
 """
 
 import asyncio
@@ -15,7 +15,7 @@ class SimulationMetrics(BaseModel):
     total_transactions_processed: int
     successful_executions: int
     policy_overrides_enforced: int
-    consensus_agreements: int
+    unanimous_consensus_agreements: int
     chaos_injection_blocks: int
     avg_latency_ms: float
     p95_latency_ms: float
@@ -29,7 +29,7 @@ class ChaosSimulator:
     async def run_batch_simulation(self, batch_size: int = 50, inject_chaos: bool = False) -> SimulationMetrics:
         latencies: List[float] = []
         policy_overrides = 0
-        consensus_agreements = 0
+        unanimous_agreements = 0
         chaos_blocks = 0
         successful = 0
 
@@ -64,20 +64,21 @@ class ChaosSimulator:
             if output["policy_result"] and output["policy_result"].override_action:
                 policy_overrides += 1
             if output["consensus_result"] and output["consensus_result"].agreement_score == 1.0:
-                consensus_agreements += 1
+                unanimous_agreements += 1
             successful += 1
 
         latencies.sort()
-        p95_idx = int(len(latencies) * 0.95)
-        p99_idx = int(len(latencies) * 0.99)
+        n = len(latencies)
+        p95_idx = min(int(n * 0.95), n - 1)
+        p99_idx = min(int(n * 0.99), n - 1)
 
         return SimulationMetrics(
             total_transactions_processed=batch_size,
             successful_executions=successful,
             policy_overrides_enforced=policy_overrides,
-            consensus_agreements=consensus_agreements,
+            unanimous_consensus_agreements=unanimous_agreements,
             chaos_injection_blocks=chaos_blocks,
-            avg_latency_ms=round(sum(latencies) / len(latencies), 2),
+            avg_latency_ms=round(sum(latencies) / n, 2),
             p95_latency_ms=round(latencies[p95_idx], 2),
             p99_latency_ms=round(latencies[p99_idx], 2)
         )
@@ -85,12 +86,13 @@ class ChaosSimulator:
 
 if __name__ == "__main__":
     sim = ChaosSimulator()
-    print("=== Executing High-Throughput Batch Simulation (50 Synthetic Txns) ===")
+    print("=== Executing Synthetic Load & Threat Injection Simulator (50 Txns) ===")
     metrics = asyncio.run(sim.run_batch_simulation(batch_size=50, inject_chaos=True))
     print(f"\n[Total Processed]: {metrics.total_transactions_processed}")
     print(f"[Successful Executions]: {metrics.successful_executions}")
     print(f"[Policy Overrides Enforced]: {metrics.policy_overrides_enforced}")
-    print(f"[Chaos Attack Blocks]: {metrics.chaos_injection_blocks}")
+    print(f"[Unanimous Consensus Count]: {metrics.unanimous_consensus_agreements}")
+    print(f"[Synthetic Attack Blocks]: {metrics.chaos_injection_blocks}")
     print(f"[Average Latency]: {metrics.avg_latency_ms} ms")
     print(f"[P95 Latency]: {metrics.p95_latency_ms} ms")
     print(f"[P99 Latency]: {metrics.p99_latency_ms} ms")
