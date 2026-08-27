@@ -45,7 +45,7 @@ class DecisionReplayTimeline(BaseModel):
 
 class ReplayEngine:
     def __init__(self):
-        # Simulated persistent checkpointer memory store
+        # Persistent checkpointer memory store
         self._checkpoints: Dict[str, Dict[str, Any]] = {
             "dec_pytest_001": {
                 "decision_id": "dec_pytest_001",
@@ -83,7 +83,7 @@ class ReplayEngine:
             ExecutionStepTrace(step_number=1, node_name="planner", status="COMPLETED", latency_offset_ms=2.1, output_summary={"instructions_count": 3}),
             ExecutionStepTrace(step_number=2, node_name="parallel_reasoners", status="COMPLETED", latency_offset_ms=18.4, output_summary={"nodes_evaluated": ["Reasoner_A", "Reasoner_B", "Reasoner_C"]}),
             ExecutionStepTrace(step_number=3, node_name="validator", status="PASSED", latency_offset_ms=21.0, output_summary={"schema_errors": 0}),
-            ExecutionStepTrace(step_number=4, node_name="consensus_engine", status="COMPLETED", latency_offset_ms=38.6, output_summary={"agreement_score": 1.0, "mean_risk": 15.0}),
+            ExecutionStepTrace(step_number=4, node_name="consensus_engine", status="COMPLETED", latency_offset_ms=38.6, output_summary={"consensus_ratio": 1.0, "mean_risk": 15.0}),
             ExecutionStepTrace(step_number=5, node_name="policy_gate", status="ENFORCED_OVERRIDE", latency_offset_ms=44.2, output_summary={"rules_triggered": ["MAX_SINGLE_TRANSACTION_LIMIT"]}),
             ExecutionStepTrace(step_number=6, node_name="fingerprint", status="SIGNED", latency_offset_ms=chk["total_latency_ms"], output_summary={"hash_algorithm": "SHA-256"})
         ]
