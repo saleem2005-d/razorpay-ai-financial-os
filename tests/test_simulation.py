@@ -1,5 +1,5 @@
 ﻿"""
-Integration Test for High-Throughput Simulation & Chaos Harness.
+Integration Tests for Synthetic Load & Threat Injection Simulator.
 """
 
 import pytest
@@ -14,4 +14,5 @@ async def test_chaos_simulation_engine():
     assert metrics.total_transactions_processed == 20
     assert metrics.successful_executions == 20
     assert metrics.chaos_injection_blocks == 4
+    assert metrics.unanimous_consensus_agreements >= 0
     assert metrics.avg_latency_ms > 0

@@ -1,9 +1,9 @@
 ﻿"""
-Integration Tests for Razorpay AI Financial Operating System.
+Integration Tests for Multi-Agent Consistency Engine & State Graph Nodes.
 """
 
 import pytest
-from src.core.consistency_engine import build_consistency_graph, FinancialOSState
+from src.core.consistency_engine import build_consistency_graph, FinancialOSState, resolve_final_action
 from src.core.schemas import ActionType
 
 
@@ -30,10 +30,13 @@ async def test_multi_agent_consistency_engine():
     assert output["policy_result"] is not None
     assert output["final_decision_fingerprint"] is not None
     
-    # Assert AI consensus voted APPROVE on clean transaction
+    # Assert AI consensus voted APPROVE on clean transaction parameters
     assert output["consensus_result"].final_action == ActionType.APPROVE
     
-    # Assert Policy Gate intercepted AI approval and forced STEP_UP_AUTH due to limit > 200,000
+    # Assert Policy Gate intercepted candidate approval and forced STEP_UP_AUTH override due to amount > 200,000
     assert output["policy_result"].passed is False
     assert output["policy_result"].override_action == ActionType.STEP_UP_AUTH
+    
+    resolved = resolve_final_action(output["consensus_result"], output["policy_result"])
+    assert resolved == ActionType.STEP_UP_AUTH
     assert len(output["final_decision_fingerprint"].hash_signature) == 64
