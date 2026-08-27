@@ -22,34 +22,34 @@ The system evaluates incoming webhooks through a zero-trust raw-body cryptograph
 
 ```mermaid
 flowchart TD
-    A[Incoming Webhook<br/>X-Razorpay-Signature & Event ID] --> B{1. Raw-Byte HMAC-SHA256 Gate}
+    A["Incoming Webhook<br/>X-Razorpay-Signature & Event ID"] --> B{"1. Raw-Byte HMAC-SHA256 Gate"}
     
-    B -- Invalid / Missing Sig --> C[HTTP 401 Unauthorized<br/>Payload Rejected]
-    B -- Valid Raw Sig --> D{2. Pydantic Payload Schema Gate}
+    B -- Invalid / Missing Sig --> C["HTTP 401 Unauthorized<br/>Payload Rejected"]
+    B -- Valid Raw Sig --> D{"2. Pydantic Payload Schema Gate"}
     
-    D -- Malformed JSON / Missing ID --> E[HTTP 400 Bad Request<br/>Schema Validation Error]
-    D -- Valid Event --> F{3. Process-Local Idempotency Lock<br/>asyncio.Lock}
+    D -- Malformed JSON / Missing ID --> E["HTTP 400 Bad Request<br/>Schema Validation Error"]
+    D -- Valid Event --> F{"3. Process-Local Idempotency Lock<br/>asyncio.Lock"}
     
-    F -- Duplicate Event ID --> G[HTTP 200 Idempotent Response<br/>Serve Cached State]
-    F -- Unique Event ID --> H[4. Multi-Signal Deterministic Risk Gate]
+    F -- Duplicate Event ID --> G["HTTP 200 Idempotent Response<br/>Serve Cached State"]
+    F -- Unique Event ID --> H["4. Multi-Signal Deterministic Risk Gate"]
     
     subgraph Multi-Signal Risk Policy
-        H --> I{Blacklist Check}
-        I -- Match --> J[Score: 0.95 | Rule: BLACKLIST_MATCH]
-        I -- Clean --> K{60s Sliding Velocity >= 4}
-        K -- Breached --> L[Score: 0.85 | Rule: VELOCITY_THRESHOLD_EXCEEDED]
-        K -- Normal --> M{Amount > ₹100,000}
-        M -- Yes --> N[Score: 0.70 | Rule: HIGH_VALUE_THRESHOLD]
-        M -- No --> O[Score: 0.02 | Rule: BASELINE_CLEAN]
+        H --> I{"Blacklist Check"}
+        I -- Match --> J["Score: 0.95 - Rule: BLACKLIST_MATCH"]
+        I -- Clean --> K{"60s Sliding Velocity >= 4"}
+        K -- Breached --> L["Score: 0.85 - Rule: VELOCITY_THRESHOLD_EXCEEDED"]
+        K -- Normal --> M{"Amount > ₹100,000"}
+        M -- Yes --> N["Score: 0.70 - Rule: HIGH_VALUE_THRESHOLD"]
+        M -- No --> O["Score: 0.02 - Rule: BASELINE_CLEAN"]
     end
     
-    J --> P[Verdict: MANUAL_REVIEW]
+    J --> P["Verdict: MANUAL_REVIEW"]
     L --> P
     N --> P
-    O --> Q[Verdict: ALLOW]
+    O --> Q["Verdict: ALLOW"]
     
-    P --> R[5. SHA-256 Decision Fingerprinting]
+    P --> R["5. SHA-256 Decision Fingerprinting"]
     Q --> R
     
-    R --> S[6. In-Memory Audit Store<br/>/api/v1/audit/fingerprint/{event_id}]
-    S --> T[JSON Response Payload<br/>Sub-10ms Synchronous Path]
+    R --> S["6. In-Memory Audit Store<br/>/api/v1/audit/fingerprint/{event_id}"]
+    S --> T["JSON Response Payload<br/>Sub-10ms Synchronous Path"]
