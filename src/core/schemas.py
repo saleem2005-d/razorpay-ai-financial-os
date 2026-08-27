@@ -42,7 +42,7 @@ class ConsensusResult(BaseModel):
     final_action: ActionType
     consensus_risk_score: float
     consensus_confidence: float
-    agreement_score: float = Field(..., ge=0.0, le=1.0, description="Jaccard/semantic similarity ratio")
+    agreement_score: float = Field(..., ge=0.0, le=1.0, description="Majority consensus ratio across parallel reasoners")
     risk_variance: float = Field(..., description="Variance in risk scores across reasoners")
     disagreements: List[str] = Field(default_factory=list, description="Explicit points of logic divergence")
 
