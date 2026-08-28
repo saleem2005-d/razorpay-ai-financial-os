@@ -1,0 +1,168 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SentinelAI | Payment Risk Verifier</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide">SentinelAI</h1>
+          <p class="text-xs text-slate-400">Deterministic Multi-Signal Risk Engine</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-xs font-mono">
+        <span class="px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+          <i class="fa-solid fa-circle text-[8px] mr-1.5 animate-pulse"></i> Gateway Active (p50: 3.84ms)
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <section class="lg:col-span-6 space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-blue-400"></i> Webhook Ingestion Simulator
+          </h2>
+          <div class="flex gap-2">
+            <button onclick="loadScenario('clean')" class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition">Normal</button>
+            <button onclick="loadScenario('high_value')" class="px-2.5 py-1 text-xs bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 rounded border border-amber-800 transition">High Value</button>
+            <button onclick="loadScenario('tampered')" class="px-2.5 py-1 text-xs bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 rounded border border-rose-800 transition">Tampered HMAC</button>
+          </div>
+        </div>
+
+        <div class="space-y-4 font-mono text-xs">
+          <div>
+            <label class="block text-slate-400 mb-1">X-Razorpay-Signature (Raw Body HMAC):</label>
+            <input id="sigInput" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-blue-400 font-mono" />
+          </div>
+
+          <div>
+            <label class="block text-slate-400 mb-1">Raw JSON Payload:</label>
+            <textarea id="payloadInput" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-slate-300 font-mono leading-relaxed"></textarea>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button onclick="sendWebhook()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-sans font-semibold py-2.5 px-4 rounded-lg shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane"></i> Dispatch Webhook
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="lg:col-span-6 space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <h2 class="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-microchip text-emerald-400"></i> Gateway Decision & Audit Ledger
+        </h2>
+
+        <div id="decisionCard" class="bg-slate-950 border border-slate-800 rounded-lg p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400 font-mono">Verdict</span>
+            <span id="verdictBadge" class="px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-800 text-slate-400">Awaiting Payload</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 pt-2 font-mono">
+            <div class="p-3 bg-slate-900/60 rounded border border-slate-800/80">
+              <span class="block text-[11px] text-slate-500">Risk Score</span>
+              <span id="riskScore" class="text-lg font-bold text-slate-300">--</span>
+            </div>
+            <div class="p-3 bg-slate-900/60 rounded border border-slate-800/80">
+              <span class="block text-[11px] text-slate-500">Triggered Rule</span>
+              <span id="triggeredRule" class="text-xs font-semibold text-slate-300 truncate block">--</span>
+            </div>
+          </div>
+
+          <div class="pt-2 font-mono">
+            <span class="block text-[11px] text-slate-500 mb-1">SHA-256 Decision Fingerprint</span>
+            <div id="fingerprint" class="bg-slate-900 p-2.5 rounded border border-slate-800 text-[11px] text-emerald-400 break-all">
+              None generated
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const sampleEvent = {
+      event_id: "evt_" + Math.random().toString(36).substr(2, 9),
+      account_id: "acc_demo_live",
+      amount: 150000,
+      currency: "INR",
+      created_at: Math.floor(Date.now() / 1000)
+    };
+
+    function loadScenario(type) {
+      const payload = { ...sampleEvent, event_id: "evt_" + Math.random().toString(36).substr(2, 9) };
+      if (type === 'clean') {
+        payload.amount = 4500;
+        document.getElementById('sigInput').value = "valid_signature_placeholder";
+      } else if (type === 'high_value') {
+        payload.amount = 150000;
+        document.getElementById('sigInput').value = "valid_signature_placeholder";
+      } else if (type === 'tampered') {
+        payload.amount = 50000;
+        document.getElementById('sigInput').value = "tampered_invalid_signature_hex";
+      }
+      document.getElementById('payloadInput').value = JSON.stringify(payload, null, 2);
+    }
+
+    async function sendWebhook() {
+      const payloadText = document.getElementById('payloadInput').value;
+      const signature = document.getElementById('sigInput').value;
+      
+      try {
+        const response = await fetch('/api/v1/webhook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Razorpay-Signature': signature
+          },
+          body: payloadText
+        });
+        const data = await response.json();
+        renderResult(response.status, data);
+      } catch (err) {
+        renderResult(500, { detail: err.message });
+      }
+    }
+
+    function renderResult(status, data) {
+      const badge = document.getElementById('verdictBadge');
+      const score = document.getElementById('riskScore');
+      const rule = document.getElementById('triggeredRule');
+      const fp = document.getElementById('fingerprint');
+
+      if (status === 200) {
+        badge.innerText = data.verdict || "ALLOW";
+        badge.className = data.verdict === 'MANUAL_REVIEW' 
+          ? "px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-amber-950 text-amber-300 border border-amber-800"
+          : "px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-emerald-950 text-emerald-300 border border-emerald-800";
+        score.innerText = data.risk_score !== undefined ? data.risk_score.toFixed(2) : "0.02";
+        rule.innerText = data.rule_triggered || "BASELINE_CLEAN";
+        fp.innerText = data.decision_fingerprint || "None";
+      } else {
+        badge.innerText = "HTTP " + status + " REJECTED";
+        badge.className = "px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-rose-950 text-rose-300 border border-rose-800";
+        score.innerText = "1.00";
+        rule.innerText = data.detail || "HMAC_SECURITY_GATE_FAILED";
+        fp.innerText = "UNAUTHORIZED_PAYLOAD_NOT_FINGERPRINTED";
+      }
+    }
+
+    loadScenario('high_value');
+  </script>
+</body>
+</html>

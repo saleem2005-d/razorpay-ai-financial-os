@@ -200,3 +200,14 @@ def get_audit_trail(event_id: str):
             detail="Audit record not found for this event ID."
         )
     return AUDIT_STORE[event_id]
+
+from fastapi.responses import HTMLResponse
+import os
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_dashboard():
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+    if os.path.exists(template_path):
+        with open(template_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>SentinelAI API Running</h1>"
