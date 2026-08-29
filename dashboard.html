@@ -1,0 +1,503 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SentinelAI - Autonomous Webhook Security & Risk Intelligence Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appDark: "#050811",
+            cardDark: "#0B1220",
+            cardBorder: "#1E293B",
+            inputDark: "#070C18",
+            accentBlue: "#3B82F6",
+            accentGreen: "#10B981",
+            accentAmber: "#F59E0B",
+            accentRed: "#EF4444",
+            accentPurple: "#8B5CF6"
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-appDark text-slate-200 min-h-screen flex flex-col justify-between antialiased selection:bg-blue-600 selection:text-white font-sans p-4 sm:p-6">
+
+  <!-- MASTER CONTAINER -->
+  <div class="max-w-7xl mx-auto w-full space-y-6">
+
+    <!-- 1. HEADER & BRANDING -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-cardBorder pb-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-bold">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-bold text-white tracking-tight leading-tight">SentinelAI</h1>
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800">Enterprise v2.5</span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">Autonomous Webhook Security & Risk Intelligence Engine</p>
+        </div>
+      </div>
+
+      <!-- Quick Telemetry Badges -->
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/80">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          GATEWAY ONLINE (99.999% SLA)
+        </span>
+        <span class="px-3 py-1 rounded-full bg-cardDark text-blue-400 border border-cardBorder">
+          p50: <span class="font-bold">3.84 ms</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- 2. EXPANDED SCENARIO PRESETS BAR (7 CASES) -->
+    <div class="bg-cardDark border border-cardBorder rounded-xl p-3 shadow-md">
+      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Simulated Attack & Traffic Scenarios:</div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <button onclick="loadScenario(0)" id="btn-0" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow">Normal</button>
+        <button onclick="loadScenario(1)" id="btn-1" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">High Value</button>
+        <button onclick="loadScenario(2)" id="btn-2" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">Tampered HMAC</button>
+        <button onclick="loadScenario(3)" id="btn-3" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">Replay Attack</button>
+        <button onclick="loadScenario(4)" id="btn-4" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">Suspicious IP</button>
+        <button onclick="loadScenario(5)" id="btn-5" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">Amount Spike</button>
+        <button onclick="loadScenario(6)" id="btn-6" class="scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800">Account Takeover</button>
+      </div>
+    </div>
+
+    <!-- 3. MAIN WORKSPACE (TWO-COLUMN ARCHITECTURE) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- LEFT: PAYLOAD & INGESTION CONTROLS (5 COLS) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="bg-cardDark border border-cardBorder rounded-xl p-5 shadow-lg space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Webhook Raw Ingress</span>
+            <span id="hmac-indicator" class="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800">
+              ✓ Valid Signature
+            </span>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-mono text-slate-400 mb-1">X-Razorpay-Signature (Raw Byte HMAC):</label>
+            <input type="text" id="sig-input" class="w-full bg-inputDark border border-cardBorder rounded-lg px-3 py-2 text-xs font-mono text-blue-400 focus:outline-none focus:border-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-mono text-slate-400 mb-1">Raw JSON Payload:</label>
+            <textarea id="payload-input" rows="9" class="w-full bg-inputDark border border-cardBorder rounded-lg p-3 text-xs font-mono text-slate-300 focus:outline-none focus:border-blue-500 resize-none leading-relaxed selection:bg-blue-900"></textarea>
+          </div>
+
+          <button onclick="verifyWebhook()" id="verify-btn" class="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs tracking-wide shadow-md transition-all flex items-center justify-center space-x-2">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            <span id="verify-text">Verify Webhook Invariants</span>
+          </button>
+        </div>
+
+        <!-- Microsecond Attack Timeline -->
+        <div class="bg-cardDark border border-cardBorder rounded-xl p-4 shadow-lg space-y-3">
+          <div class="flex items-center justify-between border-b border-cardBorder pb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Microsecond Execution Timeline</span>
+            <span id="total-exec" class="text-xs font-mono text-emerald-400 font-bold">Total: 3.84 ms</span>
+          </div>
+          <div id="timeline-list" class="space-y-2 text-xs font-mono">
+            <!-- Timeline Nodes injected dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: VERDICT, SIGNALS & AI REASONING (7 COLS) -->
+      <div class="lg:col-span-7 space-y-4">
+        
+        <!-- Decision Verdict Banner -->
+        <div class="bg-cardDark border border-cardBorder rounded-xl p-5 shadow-lg space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-[11px] uppercase font-mono tracking-wider text-slate-400">Deterministic Verdict</span>
+              <h2 id="verdict-title" class="text-2xl font-bold font-mono text-emerald-400 tracking-tight">ALLOW (200 OK)</h2>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] uppercase font-mono tracking-wider text-slate-400">Aggregated Risk</span>
+              <div id="risk-score-display" class="text-2xl font-black font-mono text-emerald-400">04 / 100</div>
+            </div>
+          </div>
+
+          <!-- Multi-Signal Score Breakdown -->
+          <div class="bg-inputDark border border-cardBorder rounded-xl p-4 space-y-2.5">
+            <div class="text-xs font-semibold text-slate-300">Intelligent Signal Breakdown:</div>
+            <div id="signals-container" class="space-y-1.5 text-xs font-mono">
+              <!-- Injected signal items -->
+            </div>
+          </div>
+
+          <!-- Triggered Policy and Fingerprint -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="bg-inputDark border border-cardBorder rounded-lg p-2.5">
+              <span class="text-slate-400 block text-[10px] uppercase font-semibold">Triggered Invariant Policy</span>
+              <span id="policy-text" class="font-mono text-slate-200 truncate block mt-0.5">ALL_INVARIANTS_PASSED</span>
+            </div>
+            <div class="bg-inputDark border border-cardBorder rounded-lg p-2.5">
+              <span class="text-slate-400 block text-[10px] uppercase font-semibold">Audit SHA-256 Fingerprint</span>
+              <span id="fingerprint-text" class="font-mono text-emerald-400 truncate block mt-0.5">9f83a2e3b0c44298fc1c149afbf4c8...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Security Explanation & Forensic Reasoning -->
+        <div class="bg-cardDark border border-cardBorder rounded-xl p-5 shadow-lg space-y-3 relative overflow-hidden">
+          <div class="absolute -right-10 -top-10 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-lg bg-purple-900/60 border border-purple-700/60 flex items-center justify-center text-purple-300">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-300">Asynchronous LLM Threat Explanation (Out-of-Band)</span>
+            </div>
+            <span id="ai-confidence" class="text-xs font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/80">Confidence: 99.8%</span>
+          </div>
+
+          <div class="bg-inputDark border border-purple-900/30 rounded-xl p-4 text-xs font-sans text-slate-300 leading-relaxed italic" id="ai-explanation">
+            "This webhook payload satisfies all cryptographic and behavioral invariants. SHA-256 signature verified against the configured secret key in constant time; velocity window and transaction amount remain within legitimate baseline behavior."
+          </div>
+
+          <div class="text-[11px] text-slate-500 font-mono flex items-center justify-between pt-1">
+            <span>LLM REASONING DISPATCHED VIA BACKGROUND EVENT STREAM</span>
+            <span>ZERO WEBHOOK SLA IMPACT</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 4. BOTTOM TELEMETRY LEDGER -->
+    <footer class="border-t border-cardBorder pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-xs font-mono">
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase">Cryptographic Engine</span>
+        <span class="text-white font-bold">Constant-Time SHA-256</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase">Median Ingress Latency</span>
+        <span class="text-emerald-400 font-bold">3.84 ms</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase">Zero-Trust Heuristics</span>
+        <span class="text-blue-400 font-bold">Active (60s Window)</span>
+      </div>
+      <div>
+        <span class="text-slate-400 block text-[10px] uppercase">Forensic Stream</span>
+        <span class="text-purple-400 font-bold">Async Event Bus Connected</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- SCRIPT ENGINE -->
+  <script>
+    const scenarios = [
+      {
+        id: "normal",
+        name: "Normal Payment",
+        verdict: "ALLOW (200 OK)",
+        verdictColor: "text-emerald-400",
+        score: "04 / 100",
+        scoreColor: "text-emerald-400",
+        policy: "ALL_INVARIANTS_PASSED",
+        fingerprint: "9f83a2e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_9f83a2",
+        amount: 4500,
+        currency: "INR",
+        latency: "Total: 3.84 ms",
+        signals: [
+          { text: "✓ Valid HMAC-SHA256 Signature Token", score: "+0", color: "text-emerald-400" },
+          { text: "✓ Known Merchant IP ASN (Clean Reputation)", score: "+1", color: "text-emerald-400" },
+          { text: "✓ Amount Below Threshold (< ₹100,000)", score: "+1", color: "text-emerald-400" },
+          { text: "✓ Velocity Invariant Normal (1 tx / 60s)", score: "+2", color: "text-emerald-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Received at Raw Ingress Socket" },
+          { time: "19:13:04.023", label: "Raw Byte SHA-256 HMAC Calculated" },
+          { time: "19:13:04.024", label: "Constant-Time Signature Match Confirmed" },
+          { time: "19:13:04.025", label: "Schema & Behavioral Invariants Verified" },
+          { time: "19:13:04.025", label: "HTTP 200 OK Dispatched to Gateway (3.84ms)" }
+        ],
+        explanation: "This webhook payload satisfies all cryptographic and behavioral invariants. SHA-256 signature verified against the configured secret key in constant time; velocity window and transaction amount remain within legitimate baseline behavior.",
+        confidence: "Confidence: 99.8%"
+      },
+      {
+        id: "high_value",
+        name: "High Value Review",
+        verdict: "MANUAL REVIEW (200 OK)",
+        verdictColor: "text-amber-400",
+        score: "72 / 100",
+        scoreColor: "text-amber-400",
+        policy: "POLICY_HIGH_VALUE_THRESHOLD (> ₹100k)",
+        fingerprint: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_3b71c8",
+        amount: 125000,
+        currency: "INR",
+        latency: "Total: 4.12 ms",
+        signals: [
+          { text: "✓ Valid HMAC-SHA256 Signature Token", score: "+0", color: "text-emerald-400" },
+          { text: "⚠ Transaction Amount Exceeds Policy Limit (₹125,000)", score: "+55", color: "text-amber-400" },
+          { text: "⚠ First High-Value Occurrence for Entity", score: "+12", color: "text-amber-400" },
+          { text: "✓ Idempotency Key Unique", score: "+5", color: "text-emerald-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Received at Raw Ingress Socket" },
+          { time: "19:13:04.023", label: "Raw Byte SHA-256 Signature Verified" },
+          { time: "19:13:04.024", label: "Policy Gate: Amount Exceeds ₹100k Threshold" },
+          { time: "19:13:04.025", label: "Event Streamed to Async Review Worker" },
+          { time: "19:13:04.025", label: "HTTP 200 OK Acknowledged to Gateway (4.12ms)" }
+        ],
+        explanation: "Cryptographic signature is valid, but the transaction amount (₹125,000.00) exceeds the active risk threshold. The webhook was acknowledged immediately with 200 OK to prevent gateway retries while asynchronously holding settlement for manual review.",
+        confidence: "Confidence: 97.4%"
+      },
+      {
+        id: "tampered",
+        name: "Tampered HMAC",
+        verdict: "401 REJECTED (FAST DROP)",
+        verdictColor: "text-rose-400",
+        score: "98 / 100",
+        scoreColor: "text-rose-400",
+        policy: "HMAC_SIGNATURE_MISMATCH",
+        fingerprint: "NOT_GENERATED (Pre-auth drop)",
+        validHmac: false,
+        sig: "tampered_invalid_sig_00000000",
+        amount: 99999,
+        currency: "INR",
+        latency: "Total: 1.12 ms",
+        signals: [
+          { text: "✕ Invalid HMAC Signature Token", score: "+50", color: "text-rose-400" },
+          { text: "✕ Raw Byte Hash Mismatch", score: "+25", color: "text-rose-400" },
+          { text: "⚠ Untrusted Egress Origin", score: "+15", color: "text-rose-400" },
+          { text: "⚠ High Amount Payload Modification", score: "+8", color: "text-rose-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Received at Ingress" },
+          { time: "19:13:04.022", label: "Raw Payload Hash Generated" },
+          { time: "19:13:04.022", label: "Constant-Time Signature Compared" },
+          { time: "19:13:04.022", label: "Signature Mismatch Detected at Byte Level" },
+          { time: "19:13:04.022", label: "Request Dropped (HTTP 401, 1.12ms, Zero CPU Alloc)" }
+        ],
+        explanation: "This webhook was rejected in 1.12ms because the signature provided does not match the calculated HMAC value. The raw byte stream was likely modified during transit or generated with an unauthorized secret key.",
+        confidence: "Confidence: 99.9%"
+      },
+      {
+        id: "replay",
+        name: "Replay Attack",
+        verdict: "429 REJECT (REPLAY DROP)",
+        verdictColor: "text-rose-400",
+        score: "89 / 100",
+        scoreColor: "text-rose-400",
+        policy: "DUPLICATE_IDEMPOTENCY_TOKEN_STORM",
+        fingerprint: "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_replay_01",
+        amount: 4500,
+        currency: "INR",
+        latency: "Total: 2.05 ms",
+        signals: [
+          { text: "✕ Duplicate Event ID Already Processed (evt_1N3x82LK0a)", score: "+45", color: "text-rose-400" },
+          { text: "✕ Velocity Spike: 48 requests / 5 sec", score: "+30", color: "text-rose-400" },
+          { text: "✓ Valid Signature Token", score: "+0", color: "text-emerald-400" },
+          { text: "⚠ Zero-Window Re-submission", score: "+14", color: "text-rose-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Received with Event ID evt_1N3x82LK0a" },
+          { time: "19:13:04.022", label: "Signature Verified via SHA-256 HMAC" },
+          { time: "19:13:04.023", label: "Idempotency Filter: Token Exists in Redis Bloom" },
+          { time: "19:13:04.023", label: "Replay Burst Identified (Velocity Breach)" },
+          { time: "19:13:04.023", label: "HTTP 429 Dropped (2.05ms)" }
+        ],
+        explanation: "SentinelAI detected a rapid replay attack vector. While the signature is cryptographically valid, the event ID has already been settled, and a 48-request burst within 5 seconds indicates a malicious resend attempt.",
+        confidence: "Confidence: 99.5%"
+      },
+      {
+        id: "suspicious_ip",
+        name: "Suspicious IP",
+        verdict: "MANUAL REVIEW (200 OK)",
+        verdictColor: "text-amber-400",
+        score: "68 / 100",
+        scoreColor: "text-amber-400",
+        policy: "UNRECOGNIZED_ASN_PROXY_ORIGIN",
+        fingerprint: "11223344556677889900aabbccddeeff00112233445566778899aabbccddeeff",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_vpn_09",
+        amount: 8500,
+        currency: "INR",
+        latency: "Total: 3.90 ms",
+        signals: [
+          { text: "✓ Valid HMAC-SHA256 Signature", score: "+0", color: "text-emerald-400" },
+          { text: "✕ Origin IP Listed in Commercial VPN / TOR Range", score: "+40", color: "text-amber-400" },
+          { text: "⚠ Geolocation ASN Mismatch with Account History", score: "+20", color: "text-amber-400" },
+          { text: "✓ Amount Invariant Normal", score: "+8", color: "text-emerald-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Ingress Handshake" },
+          { time: "19:13:04.023", label: "Cryptographic HMAC Passed" },
+          { time: "19:13:04.024", label: "IP Threat Feed Match: Datacenter / Anonymizer" },
+          { time: "19:13:04.025", label: "Dispatched to Async Forensic Pipeline" },
+          { time: "19:13:04.025", label: "Gateway Acknowledged (200 OK, 3.90ms)" }
+        ],
+        explanation: "The webhook carries a valid cryptographic signature, but the delivery IP originates from a known hosting datacenter/anonymizing VPN rather than Razorpay's published IP blocks. Event quarantined for asynchronous origin verification.",
+        confidence: "Confidence: 94.2%"
+      },
+      {
+        id: "amount_spike",
+        name: "Amount Spike",
+        verdict: "403 REJECT (INVARIANT BREAK)",
+        verdictColor: "text-rose-400",
+        score: "88 / 100",
+        scoreColor: "text-rose-400",
+        policy: "AMOUNT_CURRENCY_INVARIANT_MISMATCH",
+        fingerprint: "ccddaabb11223344556677889900aabbccddeeff11223344556677889900aabb",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_spike_88",
+        amount: 99999999,
+        currency: "INR",
+        latency: "Total: 2.18 ms",
+        signals: [
+          { text: "✕ Order-to-Payment Value Invariant Drift (> 100x)", score: "+50", color: "text-rose-400" },
+          { text: "✕ Entity Amount Exceeds System Global Ceiling", score: "+30", color: "text-rose-400" },
+          { text: "✓ Valid HMAC Signature", score: "+0", color: "text-emerald-400" },
+          { text: "⚠ Abnormal Currency Decimal Format", score: "+8", color: "text-rose-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Ingress Payload Received" },
+          { time: "19:13:04.022", label: "HMAC Signature Validated" },
+          { time: "19:13:04.023", label: "Zero-Copy Deserializer Parses Currency/Amount" },
+          { time: "19:13:04.023", label: "Global Invariant Violation (Amount > Ceiling)" },
+          { time: "19:13:04.023", label: "HTTP 403 Fast Drop (2.18ms)" }
+        ],
+        explanation: "Critical financial invariant violated. The captured payment amount deviates catastrophically from the associated order context, suggesting client-side parameter tampering prior to signature generation.",
+        confidence: "Confidence: 99.1%"
+      },
+      {
+        id: "account_takeover",
+        name: "Account Takeover",
+        verdict: "MANUAL REVIEW (200 OK)",
+        verdictColor: "text-amber-400",
+        score: "81 / 100",
+        scoreColor: "text-amber-400",
+        policy: "ACCOUNT_BEHAVIORAL_ANOMALY_CLUSTER",
+        fingerprint: "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100",
+        validHmac: true,
+        sig: "valid_sha256_mock_sig_ato_99",
+        amount: 48000,
+        currency: "INR",
+        latency: "Total: 4.25 ms",
+        signals: [
+          { text: "✕ Multi-Entity Identifier Switching in 60s Window", score: "+35", color: "text-amber-400" },
+          { text: "✕ Device Fingerprint Discrepancy (New User-Agent)", score: "+25", color: "text-amber-400" },
+          { text: "⚠ Velocity Elevation on High-Risk Card BIN", score: "+15", color: "text-amber-400" },
+          { text: "✓ Cryptographic Signature Intact", score: "+6", color: "text-emerald-400" }
+        ],
+        timeline: [
+          { time: "19:13:04.021", label: "Webhook Received" },
+          { time: "19:13:04.023", label: "Signature Cryptographically Verified" },
+          { time: "19:13:04.024", label: "Graph Engine Flags Multi-Account Card Cycling" },
+          { time: "19:13:04.025", label: "Async Threat Context Dispatched to SIEM" },
+          { time: "19:13:04.025", label: "HTTP 200 OK Dispatched (4.25ms)" }
+        ],
+        explanation: "Behavioral graph analysis flagged a high-risk account takeover pattern: simultaneous card credential testing across multiple merchant sub-accounts. Settlement flagged while transaction flow remains non-blocking.",
+        confidence: "Confidence: 96.7%"
+      }
+    ];
+
+    let currentScenarioIdx = 0;
+
+    function loadScenario(idx) {
+      currentScenarioIdx = idx;
+      const sc = scenarios[idx];
+
+      // Update Scenario Buttons
+      document.querySelectorAll(".scenario-btn").forEach((btn, i) => {
+        if (i === idx) {
+          btn.className = "scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow";
+        } else {
+          btn.className = "scenario-btn px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-cardDark text-slate-300 border border-cardBorder hover:bg-slate-800";
+        }
+      });
+
+      // Update Inputs
+      document.getElementById("sig-input").value = sc.sig;
+      document.getElementById("payload-input").value = JSON.stringify({
+        event: "payment.captured",
+        event_id: "evt_" + sc.id + "_live",
+        account_id: "acc_demo_live",
+        amount: sc.amount,
+        currency: sc.currency,
+        created_at: Math.floor(Date.now() / 1000)
+      }, null, 2);
+
+      // Update Signature Pill
+      const pill = document.getElementById("hmac-indicator");
+      if (sc.validHmac) {
+        pill.className = "inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-800";
+        pill.innerText = "✓ Valid Signature";
+      } else {
+        pill.className = "inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 bg-rose-950/70 px-2 py-0.5 rounded border border-rose-800";
+        pill.innerText = "✕ Invalid Signature";
+      }
+
+      // Update Verdict & Display
+      document.getElementById("verdict-title").innerText = sc.verdict;
+      document.getElementById("verdict-title").className = `text-2xl font-bold font-mono tracking-tight ${sc.verdictColor}`;
+      
+      document.getElementById("risk-score-display").innerText = sc.score;
+      document.getElementById("risk-score-display").className = `text-2xl font-black font-mono ${sc.scoreColor}`;
+
+      document.getElementById("policy-text").innerText = sc.policy;
+      document.getElementById("fingerprint-text").innerText = sc.fingerprint;
+      document.getElementById("total-exec").innerText = sc.latency;
+
+      // Update Signals List
+      const sigContainer = document.getElementById("signals-container");
+      sigContainer.innerHTML = sc.signals.map(s => `
+        <div class="flex items-center justify-between py-1 border-b border-cardBorder/50">
+          <span class="${s.color}">${s.text}</span>
+          <span class="font-bold text-slate-400">${s.score}</span>
+        </div>
+      `).join("");
+
+      // Update Timeline
+      const timelineContainer = document.getElementById("timeline-list");
+      timelineContainer.innerHTML = sc.timeline.map(t => `
+        <div class="flex items-start space-x-2">
+          <span class="text-slate-500 shrink-0">${t.time}</span>
+          <span class="text-blue-400 font-semibold">•</span>
+          <span class="text-slate-300">${t.label}</span>
+        </div>
+      `).join("");
+
+      // Update AI Explanation
+      document.getElementById("ai-explanation").innerText = `"${sc.explanation}"`;
+      document.getElementById("ai-confidence").innerText = sc.confidence;
+    }
+
+    function verifyWebhook() {
+      const btnText = document.getElementById("verify-text");
+      btnText.innerText = "Evaluating Invariants (3.84ms)...";
+      setTimeout(() => {
+        btnText.innerText = "Verify Webhook Invariants";
+        loadScenario(currentScenarioIdx);
+      }, 180);
+    }
+
+    // Initialize with Normal Payment
+    loadScenario(0);
+  </script>
+</body>
+</html>
